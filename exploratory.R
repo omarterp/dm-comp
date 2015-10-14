@@ -32,27 +32,57 @@ class_articles %>%
 
 #Validate Share Counts
 class_articles %>%
-  select(url, shares)  
+  select(url, shares, updated_shares) %>%
+  mutate(updated_shares = get_updated_shares(url))
+
+str
 
 article_html <- html("http://mashable.com/2013/01/07/amazon-instant-video-browser/")
 
 str_detect(article_html, "div em")
 
-shares_validation <- sapply(class_articles$url, function (x) {
+shares_validation <- tbl_df(data.frame(class_articles$url, class_articles$shares ))
+names(shares_validation) <- c("url", "shares")
+
+head(shares_validation)
+
+str(shares_validation)
+str(class_articles)
+
+sapply(class_articles[ 2, "url" ], get_updated_shares)
+
+get_updated_shares <- function (x) {
+  print( x$url )
+  article_html <- html(x$url)
   
-  article_html <- html(x)
-  
-  return( as.matrix(x, 
-                    article_html %>%
-                      html_node("div em") %>%
-                      html_text() %>%
-                      as.numeric()
-                    )
+  return( updated_shares <- article_html %>%
+                              html_node("div em") %>%
+                              html_text() %>%
+                              as.numeric()
         )
+  
+}
 
-})
+for( i in 1000:length(class_articles$url) ) {
+  
+  class_articles[ i, "updated_shares" ] <- get_updated_shares(class_articles[ i, "url" ])
+  
+  if( i == 2 ) {
+    break
+  }
+  
+}
 
+str(class_articles)
 
+class_articles %>%
+  filter( shares > updated_shares) %>%
+  select( url, shares, updated_shares)
+
+class_articles$updated_shares
+
+class_articles <- class_articles[, -63]
+class_articles[1, "updated_shares"] <- "5"
 
 
 #lapply(dev.list(), dev.off)
@@ -126,13 +156,13 @@ dev.next()
 
 #Take Sample
 trainIndex <- createDataPartition( class_articles$popular, 
-                                   p = 0.25, 
+                                   p = 0.5, 
                                    list = FALSE, 
                                    times = 1)
 
 str(trainIndex)
 
-train_data <- class_articles[ trainIndex, -1]
+train_data <- class_articles[ trainIndex, ]
 
 a <- ggplot(class_articles[trainIndex,], aes(shares))
 a + geom_histogram(binwidth = .05, aes(fill = ..count..)) + 
@@ -174,7 +204,9 @@ str(std_dev)
 
 names(std_dev) <- c("sd")
 
-std_dev <- as.data.frame(sapply(class_articles, sd))
+std_dev <- as.data.frame(sapply(train_data, sd))
+
+BiocGenerics::order(std_dev, desc(sd))
 
 top_12 <- dplyr::arrange(std_dev, desc(sd))[1:12, ]#row_number(arrange(std_dev, desc(sd))[1:12, ])
 
