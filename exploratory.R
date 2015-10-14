@@ -10,7 +10,7 @@ handle_package <- function(x) {
 
 #load dependancies
 pkg <- c("ggplot2","dplyr","R.utils","fdrtool","caret","randomForest","pROC", 
-         "readr", "stringr", "corrgram", "corrplot", "aod")
+         "readr", "stringr", "corrgram", "corrplot", "aod", "rvest")
 
 out <- lapply(pkg, handle_package)
 
@@ -27,6 +27,32 @@ class_articles <- class_articles %>% filter(shares > 300, shares < 10000)
 
 class_articles %>%
   filter(shares < 1400)
+
+
+
+#Validate Share Counts
+class_articles %>%
+  select(url, shares)  
+
+article_html <- html("http://mashable.com/2013/01/07/amazon-instant-video-browser/")
+
+str_detect(article_html, "div em")
+
+shares_validation <- sapply(class_articles$url, function (x) {
+  
+  article_html <- html(x)
+  
+  return( as.matrix(x, 
+                    article_html %>%
+                      html_node("div em") %>%
+                      html_text() %>%
+                      as.numeric()
+                    )
+        )
+
+})
+
+
 
 
 #lapply(dev.list(), dev.off)
