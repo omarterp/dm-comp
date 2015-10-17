@@ -17,10 +17,10 @@ out <- lapply(pkg, handle_package)
 class_articles <- read_csv(file = "./data/traindata.csv", col_names = TRUE)
 problems(class_articles)
 
-# create binary class - popular
-class_articles$popular <- as.numeric(class_articles$shares >= 1400)
+# create binary class - unpopular
+class_articles$ununpopular <- as.numeric(class_articles$shares <= 1400)
 
-summary(class_articles$popular)
+summary(class_articles$ununpopular)
 sd(class_articles$shares)
 
 class_articles <- class_articles %>% filter(shares > 300, shares < 10000)
@@ -84,6 +84,8 @@ class_articles$updated_shares
 class_articles <- class_articles[, -63]
 class_articles[1, "updated_shares"] <- "5"
 
+# End Validation Check
+
 
 #lapply(dev.list(), dev.off)
 
@@ -104,7 +106,7 @@ str(df)
 x <- as.data.frame(cor(x = na.omit(df[, -1], as.double), use = "everything", method = "pearson"))
 
 
-pop_rows <- which(abs(x$popular) > 0.1)
+pop_rows <- which(abs(x$unpopular) > 0.1)
 
 row.names(x)[pop_rows]
 
@@ -118,11 +120,11 @@ vars <- c("data_channel_is_entertainment",
 "LDA_02",
 "LDA_04")
 
-xtabs(~popular + data_channel_is_world, data = class_articles)
-xtabs(~popular + LDA_02, data = class_articles)
+xtabs(~unpopular + data_channel_is_world, data = class_articles)
+xtabs(~unpopular + LDA_02, data = class_articles)
 
 #Nothing works here
-mylogit <- glm(popular ~ data_channel_is_entertainment + data_channel_is_socmed + 
+mylogit <- glm(unpopular ~ data_channel_is_entertainment + data_channel_is_socmed + 
                data_channel_is_socmed + data_channel_is_tech + data_channel_is_world +
                kw_avg_avg + is_weekend + LDA_02 + LDA_04, 
                data = class_articles, family = "binomial")
@@ -136,7 +138,7 @@ corrgram(x, order = , panel=, lower.panel=, upper.panel=, text.panel=, diag.pane
 
 # Second Correlogram Example
 library(corrgram)
-corrgram(class_articles[, c("is_weekend","popular", "data_channel_is_socmed", "n_tokens_title")], order=TRUE, lower.panel=panel.ellipse,
+corrgram(class_articles[, c("is_weekend","unpopular", "data_channel_is_socmed", "n_tokens_title")], order=TRUE, lower.panel=panel.ellipse,
          upper.panel=panel.pts, text.panel=panel.txt,
          diag.panel=panel.minmax, 
          main="News Article Shares Data in PC2/PC1 Order")
@@ -155,14 +157,16 @@ dev.next()
 #PCA
 
 #Take Sample
-trainIndex <- createDataPartition( class_articles$popular, 
-                                   p = 0.5, 
+trainIndex <- createDataPartition( class_articles$unpopular, 
+                                   p = 1, 
                                    list = FALSE, 
                                    times = 1)
 
 str(trainIndex)
 
 train_data <- class_articles[ trainIndex, ]
+
+valid_data <- class_articles[ -trainIndex, ]
 
 a <- ggplot(class_articles[trainIndex,], aes(shares))
 a + geom_histogram(binwidth = .05, aes(fill = ..count..)) + 
@@ -200,13 +204,25 @@ eigenvalues <- data.frame(eigenvalues=pca.results@R2)
 # Decision Tree
 
 # Find Greatest Variance to Split on - Top 12
-str(std_dev)
-
-names(std_dev) <- c("sd")
-
 std_dev <- as.data.frame(sapply(train_data, sd))
 
-BiocGenerics::order(std_dev, desc(sd))
+# Update column names
+colnames(std_dev) <- c("sd")
+
+# Ready data frame for dplyr
+std_dev <- tbl_df(data.frame(row.names(std_dev)[1:62], std_dev$sd)[-1, ])
+
+colnames(std_dev) <- c("var", "sd")
+
+#str(std_dev)
+
+#names(std_dev) <- c("sd")
+
+#BiocGenerics::order(std_dev, desc(sd))
+
+
+
+
 
 top_12 <- dplyr::arrange(std_dev, desc(sd))[1:12, ]#row_number(arrange(std_dev, desc(sd))[1:12, ])
 
@@ -214,6 +230,16 @@ top_12 <- dplyr::arrange(std_dev, desc(sd))[1:12, ]#row_number(arrange(std_dev, 
 top_12
 
 std_dev$sd == 216383.929
+
+tbl_df(row.names(std_dev))
+
+
+
+as.data.frame(std_dev %>%
+                arrange(desc(sd)))
+
+as.data.frame(std_dev)
+
 
 
 
